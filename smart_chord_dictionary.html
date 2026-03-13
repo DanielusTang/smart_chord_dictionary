@@ -3,17 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Chord Dictionary</title>
+    <title>Smart Chord Dictionary & Trainer</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        tjc: {
+                            black: '#231F20',
+                            gold: '#FFCD00',
+                            white: '#FFFFFF',
+                            dark: '#151213', // Darker shade for outer background
+                            panel: '#322d2f' // Lighter shade for inactive elements
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
     <style>
         /* PIANO CONTAINER */
         .piano-container {
             position: relative;
             width: 100%;
             height: 14rem;
-            background: #1f2937;
+            background: #231F20;
             border-radius: 0.5rem;
-            overflow: hidden; /* Clips content */
+            overflow: hidden;
             transition: all 0.3s ease;
         }
 
@@ -22,15 +41,15 @@
             position: absolute;
             top: 0;
             height: 100%;
-            background: white;
+            background: #FFFFFF;
             border: 1px solid #ccc;
             border-radius: 0 0 4px 4px;
             z-index: 1;
             transition: background-color 0.1s ease, left 0.3s ease, width 0.3s ease;
         }
-        .white-key.active {
-            background: #ef4444 !important;
-            box-shadow: inset 0 -5px 10px rgba(0,0,0,0.2);
+        .white-key.active, .white-key.quiz-active {
+            background: #FFCD00 !important;
+            box-shadow: inset 0 -5px 10px rgba(0,0,0,0.3), 0 0 15px rgba(255, 205, 0, 0.4);
         }
 
         .black-key {
@@ -43,15 +62,21 @@
             transition: background-color 0.1s ease, left 0.3s ease, width 0.3s ease;
             box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
         }
-        .black-key.active {
-            background: #b91c1c !important;
-            background-image: linear-gradient(to bottom, #b91c1c, #991b1b);
+        .black-key.active, .black-key.quiz-active {
+            background: #FFCD00 !important;
+            background-image: linear-gradient(to bottom, #FFCD00, #d9ae00);
+            box-shadow: 0 0 15px rgba(255, 205, 0, 0.4);
         }
         
+        /* TJC Checkbox Accent */
+        input[type="checkbox"] {
+            accent-color: #FFCD00;
+        }
+
         /* Loading Animation */
         .loader {
-            border: 3px solid #374151;
-            border-top: 3px solid #ef4444;
+            border: 3px solid #322d2f;
+            border-top: 3px solid #FFCD00;
             border-radius: 50%;
             width: 20px;
             height: 20px;
@@ -60,86 +85,151 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen font-sans flex flex-col items-center py-10">
+<body class="bg-tjc-dark text-tjc-white min-h-screen font-sans flex flex-col items-center py-10">
 
-    <header class="text-center mb-8 px-4">
-        <h1 class="text-3xl md:text-4xl font-bold mb-2 text-white">Smart Chord Dictionary</h1>
-        <p class="text-gray-400 text-sm">Select Root, Quality & Inversion. The piano expands automatically.</p>
+    <header class="text-center mb-6 px-4">
+        <h1 class="text-3xl md:text-4xl font-bold mb-4 text-tjc-white">Smart Chord Dictionary</h1>
+        
+        <div class="inline-flex bg-tjc-black rounded-lg p-1 border border-tjc-gold/20">
+            <button id="tab-dict" onclick="switchMode('dictionary')" class="px-6 py-2 rounded-md font-bold text-sm transition-colors bg-tjc-gold text-tjc-black shadow">Dictionary Mode</button>
+            <button id="tab-quiz" onclick="switchMode('quiz')" class="px-6 py-2 rounded-md font-bold text-sm transition-colors text-tjc-white/70 hover:text-tjc-gold hover:bg-tjc-panel">Quiz Mode</button>
+        </div>
     </header>
 
     <div class="w-full max-w-4xl px-2 mb-8">
-        <div id="piano" class="piano-container shadow-2xl border border-gray-700">
-            </div>
+        <div id="piano" class="piano-container shadow-2xl border border-tjc-gold/30"></div>
     </div>
 
-    <div class="w-full max-w-4xl px-4 space-y-6">
-        
-        <div class="bg-gray-800 p-4 md:p-6 rounded-xl border border-gray-700">
-            <h3 class="text-xs uppercase tracking-wider text-gray-500 mb-3 font-semibold">1. Select Root</h3>
+    <div id="dictionary-ui" class="w-full max-w-4xl px-4 space-y-6">
+        <div class="bg-tjc-black p-4 md:p-6 rounded-xl border border-tjc-gold/20">
+            <h3 class="text-xs uppercase tracking-wider text-tjc-gold/70 mb-3 font-bold">1. Select Root</h3>
             <div id="root-container" class="flex flex-wrap gap-2"></div>
         </div>
 
-        <div class="bg-gray-800 p-4 md:p-6 rounded-xl border border-gray-700">
-            <h3 class="text-xs uppercase tracking-wider text-gray-500 mb-3 font-semibold">2. Select Quality</h3>
+        <div class="bg-tjc-black p-4 md:p-6 rounded-xl border border-tjc-gold/20">
+            <h3 class="text-xs uppercase tracking-wider text-tjc-gold/70 mb-3 font-bold">2. Select Quality</h3>
             <div id="quality-container" class="flex flex-wrap gap-2"></div>
         </div>
 
-        <div class="bg-gray-800 p-4 md:p-6 rounded-xl border border-gray-700">
-            <h3 class="text-xs uppercase tracking-wider text-gray-500 mb-3 font-semibold">3. Select Inversion</h3>
+        <div class="bg-tjc-black p-4 md:p-6 rounded-xl border border-tjc-gold/20">
+            <h3 class="text-xs uppercase tracking-wider text-tjc-gold/70 mb-3 font-bold">3. Select Inversion</h3>
             <div id="inversion-container" class="flex flex-wrap gap-2"></div>
         </div>
 
-        <div id="ai-section" class="bg-gradient-to-br from-gray-800 to-gray-900 p-6 rounded-xl border border-gray-700 mt-8 hidden">
-            <div class="flex items-center justify-between mb-4 border-b border-gray-700 pb-2">
-                <h2 class="text-xl font-bold text-red-400 flex items-center gap-2">AI Theorist</h2>
-                <span id="current-chord-display" class="bg-gray-700 px-3 py-1 rounded text-sm font-mono text-white"></span>
+        <div id="ai-section" class="bg-gradient-to-br from-tjc-black to-tjc-dark p-6 rounded-xl border border-tjc-gold/30 mt-8 hidden">
+            <div class="flex items-center justify-between mb-4 border-b border-tjc-gold/20 pb-2">
+                <h2 class="text-xl font-bold text-tjc-gold flex items-center gap-2">AI Theorist</h2>
+                <span id="current-chord-display" class="bg-tjc-panel text-tjc-gold px-3 py-1 rounded text-sm font-bold tracking-wide border border-tjc-gold/20"></span>
             </div>
-            <div id="ai-content" class="text-gray-300 leading-relaxed text-sm md:text-base space-y-3"></div>
+            <div id="ai-content" class="text-tjc-white/90 leading-relaxed text-sm md:text-base space-y-3"></div>
         </div>
+    </div>
+
+    <div id="quiz-ui" class="w-full max-w-4xl px-4 space-y-6 hidden">
+        
+        <div id="quiz-settings" class="bg-tjc-black p-6 rounded-xl border border-tjc-gold/20">
+            <h2 class="text-xl font-bold text-tjc-gold mb-4">Sight-Reading Trainer Settings</h2>
+            <p class="text-sm text-tjc-white/70 mb-4">Select the levels and types of chords you want to be tested on.</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <label class="flex items-center space-x-3 p-3 bg-tjc-dark rounded border border-tjc-gold/20 cursor-pointer hover:border-tjc-gold transition">
+                    <input type="checkbox" id="level-triads" class="w-5 h-5 rounded cursor-pointer" checked>
+                    <span class="text-tjc-white font-medium">Level 1: Basic Triads <span class="text-xs text-tjc-white/50 block">Major, Minor</span></span>
+                </label>
+                <label class="flex items-center space-x-3 p-3 bg-tjc-dark rounded border border-tjc-gold/20 cursor-pointer hover:border-tjc-gold transition">
+                    <input type="checkbox" id="level-adv-triads" class="w-5 h-5 rounded cursor-pointer">
+                    <span class="text-tjc-white font-medium">Level 2: Adv Triads <span class="text-xs text-tjc-white/50 block">Dim, Aug, Sus</span></span>
+                </label>
+                <label class="flex items-center space-x-3 p-3 bg-tjc-dark rounded border border-tjc-gold/20 cursor-pointer hover:border-tjc-gold transition">
+                    <input type="checkbox" id="level-sevenths" class="w-5 h-5 rounded cursor-pointer">
+                    <span class="text-tjc-white font-medium">Level 3: 7th Chords <span class="text-xs text-tjc-white/50 block">Maj7, m7, dom7, dim7, m7b5</span></span>
+                </label>
+                <label class="flex items-center space-x-3 p-3 bg-tjc-dark rounded border border-tjc-gold/20 cursor-pointer hover:border-tjc-gold transition">
+                    <input type="checkbox" id="level-extensions" class="w-5 h-5 rounded cursor-pointer">
+                    <span class="text-tjc-white font-medium">Level 4: Extensions <span class="text-xs text-tjc-white/50 block">9ths, 11ths, 13ths</span></span>
+                </label>
+            </div>
+
+            <div class="border-t border-tjc-gold/20 pt-4 mb-6">
+                <label class="flex items-center space-x-3 cursor-pointer">
+                    <input type="checkbox" id="opt-inversions" class="w-5 h-5 rounded cursor-pointer">
+                    <span class="text-tjc-white font-bold">Hard Mode: Include Random Inversions</span>
+                </label>
+            </div>
+
+            <button onclick="startQuiz()" class="w-full py-3 bg-tjc-gold hover:bg-[#cca400] text-tjc-black font-bold rounded-lg transition shadow-lg text-lg">
+                Start Randomizer
+            </button>
+            <p id="quiz-error" class="text-red-400 text-sm mt-3 hidden text-center font-bold">Please select at least one level!</p>
+        </div>
+
+        <div id="quiz-play" class="hidden space-y-6">
+            <div class="flex justify-between items-center bg-tjc-black p-4 rounded-xl border border-tjc-gold/20">
+                <span class="text-tjc-white/70 font-bold">Score: <span id="quiz-score" class="text-tjc-gold text-xl ml-2">0</span></span>
+                <button onclick="stopQuiz()" class="text-sm font-bold text-red-400 hover:text-red-300">End Quiz</button>
+            </div>
+
+            <div class="text-center">
+                <h2 class="text-2xl font-bold text-tjc-white mb-6">What chord is highlighted?</h2>
+                <div id="quiz-options" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    </div>
+            </div>
+
+            <div id="quiz-feedback" class="text-center hidden pt-4">
+                <h3 id="feedback-text" class="text-2xl font-bold mb-4"></h3>
+                <button onclick="nextQuizQuestion()" class="px-8 py-3 bg-tjc-gold hover:bg-[#cca400] text-tjc-black font-bold rounded-lg transition shadow-lg">Next Chord ➔</button>
+            </div>
+        </div>
+
     </div>
 
     <script>
         // --- 1. DATA CONSTANTS ---
         const notes = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
         
-        const chordTypes = {
-            '5': [0, 7], 'Major': [0, 4, 7], 'Minor': [0, 3, 7], 'sus': [0, 5, 7], 
-            'dim': [0, 3, 6], 'aug': [0, 4, 8], '6': [0, 4, 7, 9], 'm6': [0, 3, 7, 9], 
-            '6/9': [0, 4, 7, 9, 14], '7': [0, 4, 7, 10], 'm7': [0, 3, 7, 10], 
-            'Maj7': [0, 4, 7, 11], 'mM7': [0, 3, 7, 11], 'dim7': [0, 3, 6, 9], 
-            'm7b5': [0, 3, 6, 10], 'aug7': [0, 4, 8, 10], '7-5': [0, 4, 6, 10], 
-            '7+5': [0, 4, 8, 10], 'add': [0, 4, 7, 14], '9': [0, 4, 7, 10, 14], 
-            'm9': [0, 3, 7, 10, 14], 'Maj9': [0, 4, 7, 11, 14], '11': [0, 7, 10, 14, 17], 
-            'm11': [0, 3, 7, 10, 14, 17], 'Maj11': [0, 4, 7, 11, 14, 17], 
-            '13': [0, 4, 7, 10, 14, 21], 'm13': [0, 3, 7, 10, 14, 21], 'Maj13': [0, 4, 7, 11, 14, 21]
+        const chordDictionary = {
+            triads: { 'Major': [0, 4, 7], 'Minor': [0, 3, 7] },
+            advTriads: { 'sus': [0, 5, 7], 'dim': [0, 3, 6], 'aug': [0, 4, 8] },
+            sevenths: { '7': [0, 4, 7, 10], 'm7': [0, 3, 7, 10], 'Maj7': [0, 4, 7, 11], 'dim7': [0, 3, 6, 9], 'm7b5': [0, 3, 6, 10] },
+            extensions: { '9': [0, 4, 7, 10, 14], 'Maj9': [0, 4, 7, 11, 14], '11': [0, 7, 10, 14, 17], '13': [0, 4, 7, 10, 14, 21] }
         };
 
+        const chordTypes = { ...chordDictionary.triads, ...chordDictionary.advTriads, ...chordDictionary.sevenths, ...chordDictionary.extensions };
+
         const qualitySuffixes = {
-            '5': '5', 'Major': '', 'Minor': 'm', 'sus': 'sus', 'dim': 'dim', 'aug': 'aug',
-            '6': '6', 'm6': 'm6', '6/9': '6/9', '7': '7', 'm7': 'm7', 'Maj7': 'maj7',
-            'mM7': 'mM7', 'dim7': 'dim7', 'm7b5': 'm7b5', 'aug7': 'aug7', '7-5': '7b5',
-            '7+5': '7#5', 'add': 'add9', '9': '9', 'm9': 'm9', 'Maj9': 'maj9', 
-            '11': '11', 'm11': 'm11', 'Maj11': 'maj11', '13': '13', 'm13': 'm13', 'Maj13': 'maj13'
+            'Major': '', 'Minor': 'm', 'sus': 'sus', 'dim': 'dim', 'aug': 'aug',
+            '7': '7', 'm7': 'm7', 'Maj7': 'maj7', 'dim7': 'dim7', 'm7b5': 'm7b5',
+            '9': '9', 'Maj9': 'maj9', '11': '11', '13': '13'
         };
 
         const inversionLabels = ['Root', '1st', '2nd', '3rd', '4th', '5th'];
 
-        // --- 2. CONFIGURATION ---
-        let currentOctaves = 2; // Start standard
+        // --- 2. GLOBAL STATE ---
+        let appMode = 'dictionary';
+        let currentOctaves = 2;
+        
         let selectedRootIndex = 0;
         let selectedQualityKey = 'Major';
         let selectedInversion = 0;
 
+        let quizPool = []; 
+        let quizAllowInversions = false;
+        let currentQuizChord = null; 
+        let quizScore = 0;
+
+        // --- Helper Function for Formatting ---
+        function formatChordString(rootName, suffix) {
+            return suffix ? `${rootName} ${suffix}` : rootName;
+        }
+
         // --- 3. DOM ELEMENTS ---
         const pianoEl = document.getElementById('piano');
-        const rootContainer = document.getElementById('root-container');
-        const qualityContainer = document.getElementById('quality-container');
-        const inversionContainer = document.getElementById('inversion-container');
-        const aiSection = document.getElementById('ai-section');
-        const aiContent = document.getElementById('ai-content');
-        const chordDisplay = document.getElementById('current-chord-display');
+        const tabDict = document.getElementById('tab-dict');
+        const tabQuiz = document.getElementById('tab-quiz');
+        const dictUI = document.getElementById('dictionary-ui');
+        const quizUI = document.getElementById('quiz-ui');
 
-        // --- 4. BUILDERS ---
+        // --- 4. APP INITIALIZATION & NAVIGATION ---
         function init() {
             buildPiano(2);
             buildRootButtons();
@@ -149,29 +239,43 @@
             selectQuality('Major');
         }
 
+        function switchMode(mode) {
+            appMode = mode;
+            if (mode === 'dictionary') {
+                tabDict.className = "px-6 py-2 rounded-md font-bold text-sm transition-colors bg-tjc-gold text-tjc-black shadow";
+                tabQuiz.className = "px-6 py-2 rounded-md font-bold text-sm transition-colors text-tjc-white/70 hover:text-tjc-gold hover:bg-tjc-panel";
+                dictUI.classList.remove('hidden');
+                quizUI.classList.add('hidden');
+                updatePianoAndState(); 
+            } else {
+                tabQuiz.className = "px-6 py-2 rounded-md font-bold text-sm transition-colors bg-tjc-gold text-tjc-black shadow";
+                tabDict.className = "px-6 py-2 rounded-md font-bold text-sm transition-colors text-tjc-white/70 hover:text-tjc-gold hover:bg-tjc-panel";
+                dictUI.classList.add('hidden');
+                quizUI.classList.remove('hidden');
+                stopQuiz(); 
+            }
+        }
+
+        // --- 5. CORE PIANO BUILDER ---
         function buildPiano(numOctaves) {
             pianoEl.innerHTML = '';
             currentOctaves = numOctaves;
-
             const whiteKeyCount = 7 * numOctaves;
             const totalSemitones = 12 * numOctaves;
             const whiteKeyWidth = 100 / whiteKeyCount; 
             const blackKeyWidth = whiteKeyWidth * 0.65; 
-
             let whiteKeyIndex = 0;
 
             for (let i = 0; i < totalSemitones; i++) {
                 const noteInOctave = i % 12;
                 const isBlack = [1, 3, 6, 8, 10].includes(noteInOctave);
-
                 const key = document.createElement('div');
                 key.dataset.index = i;
 
                 if (isBlack) {
                     key.className = 'black-key';
                     key.style.width = `${blackKeyWidth}%`;
-                    const leftPos = (whiteKeyIndex * whiteKeyWidth) - (blackKeyWidth / 2);
-                    key.style.left = `${leftPos}%`;
+                    key.style.left = `${(whiteKeyIndex * whiteKeyWidth) - (blackKeyWidth / 2)}%`;
                 } else {
                     key.className = 'white-key';
                     key.style.width = `${whiteKeyWidth}%`;
@@ -182,166 +286,274 @@
             }
         }
 
-        function buildRootButtons() {
+        // --- 6. DICTIONARY MODE LOGIC ---
+        function buildRootButtons() { 
+            const rootContainer = document.getElementById('root-container');
             rootContainer.innerHTML = '';
             notes.forEach((note, index) => {
                 const btn = document.createElement('button');
                 btn.innerText = note;
                 btn.dataset.index = index;
-                btn.className = 'root-btn px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-xs font-bold border border-transparent transition';
+                btn.className = 'root-btn px-3 py-2 bg-tjc-panel hover:bg-tjc-gold/20 text-tjc-white rounded text-xs font-bold border border-transparent transition';
                 btn.onclick = () => selectRoot(index);
                 rootContainer.appendChild(btn);
             });
         }
 
-        function buildQualityButtons() {
+        function buildQualityButtons() { 
+            const qualityContainer = document.getElementById('quality-container');
             qualityContainer.innerHTML = '';
             const rootName = notes[selectedRootIndex];
-            
             Object.keys(chordTypes).forEach(key => {
                 const btn = document.createElement('button');
-                btn.innerText = rootName + qualitySuffixes[key];
+                btn.innerText = formatChordString(rootName, qualitySuffixes[key]);
                 btn.dataset.key = key;
-                btn.className = 'quality-btn px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-xs font-medium border border-transparent transition min-w-[3rem]';
+                btn.className = 'quality-btn px-3 py-2 bg-tjc-panel hover:bg-tjc-gold/20 text-tjc-white rounded text-xs font-bold border border-transparent transition min-w-[3rem]';
                 btn.onclick = () => selectQuality(key);
                 qualityContainer.appendChild(btn);
             });
         }
 
-        function buildInversionButtons() {
+        function buildInversionButtons() { 
+            const inversionContainer = document.getElementById('inversion-container');
             inversionContainer.innerHTML = '';
-            
-            // Determine how many inversions are possible
-            // A chord with N notes has N possible positions (Root + N-1 inversions)
             const numNotes = chordTypes[selectedQualityKey].length;
-            
             for(let i = 0; i < numNotes; i++) {
                 const btn = document.createElement('button');
                 btn.innerText = inversionLabels[i] || `${i}th`;
                 btn.dataset.inv = i;
-                btn.className = 'inv-btn px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-xs font-bold border border-transparent transition min-w-[3rem]';
+                btn.className = 'inv-btn px-3 py-2 bg-tjc-panel hover:bg-tjc-gold/20 text-tjc-white rounded text-xs font-bold border border-transparent transition min-w-[3rem]';
                 btn.onclick = () => selectInversion(i);
                 inversionContainer.appendChild(btn);
             }
         }
 
-        // --- 5. LOGIC & INTERACTION ---
-
         function selectRoot(index) {
             selectedRootIndex = index;
-            
             document.querySelectorAll('.root-btn').forEach(btn => {
                 const isActive = parseInt(btn.dataset.index) === index;
-                btn.className = isActive 
-                    ? 'root-btn px-3 py-2 bg-red-600 text-white border-red-400 rounded text-xs font-bold border transition' 
-                    : 'root-btn px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-xs font-bold border border-transparent transition';
+                btn.className = isActive ? 'root-btn px-3 py-2 bg-tjc-gold text-tjc-black border-tjc-gold rounded text-xs font-bold border transition' : 'root-btn px-3 py-2 bg-tjc-panel hover:bg-tjc-gold/20 text-tjc-white rounded text-xs font-bold border border-transparent transition';
             });
-
             buildQualityButtons();
-            
-            // Restore visual state of current quality button
             const activeQBtn = document.querySelector(`.quality-btn[data-key="${selectedQualityKey}"]`);
-            if (activeQBtn) {
-                activeQBtn.className = 'quality-btn px-3 py-2 bg-red-600 text-white border-red-400 rounded text-xs font-medium border transition min-w-[3rem]';
-            }
-
+            if (activeQBtn) activeQBtn.className = 'quality-btn px-3 py-2 bg-tjc-gold text-tjc-black border-tjc-gold rounded text-xs font-bold border transition min-w-[3rem]';
             updatePianoAndState();
         }
 
         function selectQuality(key) {
             selectedQualityKey = key;
-            // Reset inversion to Root when changing chord type to avoid bugs
             selectedInversion = 0; 
-            
             document.querySelectorAll('.quality-btn').forEach(btn => {
                 const isActive = btn.dataset.key === key;
-                btn.className = isActive 
-                    ? 'quality-btn px-3 py-2 bg-red-600 text-white border-red-400 rounded text-xs font-medium border transition min-w-[3rem]'
-                    : 'quality-btn px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-xs font-medium border border-transparent transition min-w-[3rem]';
+                btn.className = isActive ? 'quality-btn px-3 py-2 bg-tjc-gold text-tjc-black border-tjc-gold rounded text-xs font-bold border transition min-w-[3rem]' : 'quality-btn px-3 py-2 bg-tjc-panel hover:bg-tjc-gold/20 text-tjc-white rounded text-xs font-bold border border-transparent transition min-w-[3rem]';
             });
-
-            // Rebuild inversion buttons because note count might have changed
             buildInversionButtons();
-            selectInversion(0); // This triggers the update
+            selectInversion(0);
         }
 
         function selectInversion(index) {
             selectedInversion = index;
-
             document.querySelectorAll('.inv-btn').forEach(btn => {
                 const isActive = parseInt(btn.dataset.inv) === index;
-                btn.className = isActive 
-                    ? 'inv-btn px-3 py-2 bg-red-600 text-white border-red-400 rounded text-xs font-bold border transition min-w-[3rem]'
-                    : 'inv-btn px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-xs font-bold border border-transparent transition min-w-[3rem]';
+                btn.className = isActive ? 'inv-btn px-3 py-2 bg-tjc-gold text-tjc-black border-tjc-gold rounded text-xs font-bold border transition min-w-[3rem]' : 'inv-btn px-3 py-2 bg-tjc-panel hover:bg-tjc-gold/20 text-tjc-white rounded text-xs font-bold border border-transparent transition min-w-[3rem]';
             });
-
             updatePianoAndState();
         }
 
         function updatePianoAndState() {
-            // 1. Get Base Intervals
-            let intervals = [...chordTypes[selectedQualityKey]]; // Copy array
+            if (appMode !== 'dictionary') return;
 
-            // 2. Apply Inversion Logic
-            // Algorithm: Shift the first note up 12 semitones, repeat N times.
+            let intervals = [...chordTypes[selectedQualityKey]];
             for (let i = 0; i < selectedInversion; i++) {
                 const firstNote = intervals.shift();
                 intervals.push(firstNote + 12);
             }
 
-            // 3. Map to Absolute Keys
-            // We must sort intervals because inversions mess up the order (e.g., 4, 7, 12)
-            // But visually we just need the active indices.
             const activeIndices = intervals.map(interval => selectedRootIndex + interval);
-            
-            // 4. Determine Required Octaves
             const maxIndex = Math.max(...activeIndices);
             
-            // Dynamic Calculation: e.g., index 30 needs 3 octaves, index 40 needs 4 octaves.
-            // 1 Octave = 12 keys.
             let requiredOctaves = Math.ceil((maxIndex + 1) / 12);
-            if (requiredOctaves < 2) requiredOctaves = 2; // Min 2 octaves
-            if (requiredOctaves > 4) requiredOctaves = 4; // Max 4 octaves (safety cap)
+            if (requiredOctaves < 2) requiredOctaves = 2;
+            if (requiredOctaves > 4) requiredOctaves = 4;
 
-            if (currentOctaves !== requiredOctaves) {
-                buildPiano(requiredOctaves);
-            }
+            if (currentOctaves !== requiredOctaves) buildPiano(requiredOctaves);
 
-            // 5. Highlight Keys
-            document.querySelectorAll('.white-key, .black-key').forEach(k => k.classList.remove('active'));
+            document.querySelectorAll('.white-key, .black-key').forEach(k => {
+                k.classList.remove('active', 'quiz-active');
+            });
 
             activeIndices.forEach(idx => {
                 const key = document.querySelector(`div[data-index="${idx}"]`);
                 if (key) key.classList.add('active');
             });
 
-            // 6. Trigger AI
-            const chordName = notes[selectedRootIndex] + qualitySuffixes[selectedQualityKey];
+            const rootName = notes[selectedRootIndex];
+            const chordName = formatChordString(rootName, qualitySuffixes[selectedQualityKey]);
             const invText = selectedInversion === 0 ? "Root Position" : `${inversionLabels[selectedInversion]} Inversion`;
+            
+            document.getElementById('ai-section').classList.remove('hidden');
+            document.getElementById('current-chord-display').innerText = `${chordName} (${invText})`;
+            
+            // Trigger AI mock explanation
             triggerAI(chordName, invText);
         }
 
-        // --- 6. MOCK AI ---
+        // --- MOCK AI FUNCTION ---
         function triggerAI(name, inversion) {
-            aiSection.classList.remove('hidden');
-            chordDisplay.innerText = `${name} (${inversion})`;
-            aiContent.innerHTML = `<div class="flex items-center gap-2 text-gray-400"><div class="loader"></div> Analyzing voicing...</div>`;
+            const aiContent = document.getElementById('ai-content');
+            aiContent.innerHTML = `<div class="flex items-center gap-2 text-tjc-white/70"><div class="loader"></div> Analyzing voicing...</div>`;
 
             setTimeout(() => {
-                aiContent.innerHTML = generateMockResponse(name, inversion);
+                let response = '';
+                if (inversion.includes('1st')) response = `<p><strong class="text-tjc-white">Voicing:</strong> You are playing the <span class="text-tjc-gold">1st Inversion</span> of ${name}. The 3rd is now in the bass, creating a smoother transition to nearby chords.</p>`;
+                else if (inversion.includes('2nd')) response = `<p><strong class="text-tjc-white">Voicing:</strong> This is the <span class="text-tjc-gold">2nd Inversion</span>. With the 5th in the bass, it feels slightly unstable, often acting as a 'Cadential 6/4' in classical theory.</p>`;
+                else if (inversion.includes('3rd')) response = `<p><strong class="text-tjc-white">Jazz Voicing:</strong> The <span class="text-tjc-gold">3rd Inversion</span> puts the 7th in the bass. This creates strong forward motion.</p>`;
+                else if (name.includes('13')) response = `<p><strong class="text-tjc-white">Extended Range:</strong> The <span class="text-tjc-gold">${name}</span> requires 3+ octaves to fully voice. Notice how the keyboard expanded?</p>`;
+                else response = `<p><strong class="text-tjc-white">Analysis:</strong> <span class="text-tjc-gold">${name}</span> in Root Position. The strongest and most stable way to play this chord.</p>`;
+                
+                aiContent.innerHTML = response;
             }, 600);
         }
 
-        function generateMockResponse(name, inversion) {
-            if (inversion.includes('1st')) return `<p><strong class="text-white">Voicing:</strong> You are playing the <span class="text-red-400">1st Inversion</span> of ${name}. The 3rd is now in the bass, creating a smoother transition to nearby chords.</p>`;
-            if (inversion.includes('2nd')) return `<p><strong class="text-white">Voicing:</strong> This is the <span class="text-red-400">2nd Inversion</span>. With the 5th in the bass, it feels slightly unstable, often acting as a 'Cadential 6/4' in classical theory.</p>`;
-            if (inversion.includes('3rd')) return `<p><strong class="text-white">Jazz Voicing:</strong> The <span class="text-red-400">3rd Inversion</span> puts the 7th in the bass. This creates strong forward motion.</p>`;
+        // --- 7. QUIZ MODE LOGIC ---
+        function startQuiz() {
+            quizPool = [];
+            if (document.getElementById('level-triads').checked) quizPool.push(...Object.keys(chordDictionary.triads));
+            if (document.getElementById('level-adv-triads').checked) quizPool.push(...Object.keys(chordDictionary.advTriads));
+            if (document.getElementById('level-sevenths').checked) quizPool.push(...Object.keys(chordDictionary.sevenths));
+            if (document.getElementById('level-extensions').checked) quizPool.push(...Object.keys(chordDictionary.extensions));
             
-            if (name.includes('13')) return `<p><strong class="text-white">Extended Range:</strong> The <span class="text-red-400">${name}</span> requires 3+ octaves to fully voice. Notice how the keyboard expanded?</p>`;
-            return `<p><strong class="text-white">Analysis:</strong> <span class="text-red-400">${name}</span> in Root Position. The strongest and most stable way to play this chord.</p>`;
+            quizAllowInversions = document.getElementById('opt-inversions').checked;
+
+            if (quizPool.length === 0) {
+                document.getElementById('quiz-error').classList.remove('hidden');
+                return;
+            }
+
+            document.getElementById('quiz-error').classList.add('hidden');
+            document.getElementById('quiz-settings').classList.add('hidden');
+            document.getElementById('quiz-play').classList.remove('hidden');
+            
+            quizScore = 0;
+            document.getElementById('quiz-score').innerText = quizScore;
+            
+            document.querySelectorAll('.white-key, .black-key').forEach(k => k.classList.remove('active', 'quiz-active'));
+            buildPiano(3); 
+
+            nextQuizQuestion();
         }
 
-        // Start
+        function stopQuiz() {
+            document.getElementById('quiz-settings').classList.remove('hidden');
+            document.getElementById('quiz-play').classList.add('hidden');
+            document.querySelectorAll('.white-key, .black-key').forEach(k => k.classList.remove('active', 'quiz-active'));
+        }
+
+        function nextQuizQuestion() {
+            document.getElementById('quiz-feedback').classList.add('hidden');
+            document.getElementById('quiz-options').innerHTML = ''; 
+
+            const randRootIdx = Math.floor(Math.random() * notes.length);
+            const randQualityKey = quizPool[Math.floor(Math.random() * quizPool.length)];
+            
+            let randInv = 0;
+            const possibleInvs = chordTypes[randQualityKey].length;
+            if (quizAllowInversions) {
+                randInv = Math.floor(Math.random() * possibleInvs);
+            }
+
+            currentQuizChord = { root: randRootIdx, quality: randQualityKey, inversion: randInv };
+            const correctLabel = generateChordLabel(randRootIdx, randQualityKey, randInv);
+
+            drawQuizChord(randRootIdx, randQualityKey, randInv);
+
+            let options = [correctLabel];
+            while(options.length < 4) {
+                const wRoot = Math.floor(Math.random() * notes.length);
+                const wQual = quizPool[Math.floor(Math.random() * quizPool.length)];
+                let wInv = 0;
+                if(quizAllowInversions) wInv = Math.floor(Math.random() * chordTypes[wQual].length);
+                
+                const wLabel = generateChordLabel(wRoot, wQual, wInv);
+                if (!options.includes(wLabel)) {
+                    options.push(wLabel);
+                }
+            }
+
+            options = options.sort(() => Math.random() - 0.5);
+            
+            const optContainer = document.getElementById('quiz-options');
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.innerText = opt;
+                btn.className = 'w-full py-4 bg-tjc-panel hover:bg-tjc-gold/20 border-2 border-transparent text-tjc-white font-bold tracking-wide text-lg rounded-xl transition option-btn';
+                btn.onclick = () => handleQuizAnswer(opt, correctLabel, btn);
+                optContainer.appendChild(btn);
+            });
+        }
+
+        function generateChordLabel(rIdx, qKey, inv) {
+            const rootName = notes[rIdx];
+            let label = formatChordString(rootName, qualitySuffixes[qKey]);
+            
+            if (quizAllowInversions && inv > 0) {
+                label += ` (${inversionLabels[inv]} Inv)`;
+            }
+            return label;
+        }
+
+        function drawQuizChord(rIdx, qKey, inv) {
+            let intervals = [...chordTypes[qKey]];
+            for (let i = 0; i < inv; i++) {
+                const firstNote = intervals.shift();
+                intervals.push(firstNote + 12);
+            }
+            const activeIndices = intervals.map(interval => rIdx + interval);
+
+            document.querySelectorAll('.white-key, .black-key').forEach(k => k.classList.remove('quiz-active', 'active'));
+            
+            const maxIndex = Math.max(...activeIndices);
+            let requiredOctaves = Math.ceil((maxIndex + 1) / 12);
+            if (requiredOctaves < 3) requiredOctaves = 3; 
+            if (requiredOctaves > 4) requiredOctaves = 4;
+            if (currentOctaves !== requiredOctaves) buildPiano(requiredOctaves);
+
+            activeIndices.forEach(idx => {
+                const key = document.querySelector(`div[data-index="${idx}"]`);
+                if (key) key.classList.add('quiz-active');
+            });
+        }
+
+        function handleQuizAnswer(selected, correct, btn) {
+            document.querySelectorAll('.option-btn').forEach(b => {
+                b.onclick = null;
+                b.classList.remove('hover:bg-tjc-gold/20');
+                if (b.innerText === correct) {
+                    b.classList.add('bg-green-600', 'border-green-400');
+                    b.classList.remove('bg-tjc-panel');
+                }
+            });
+
+            const feedbackEl = document.getElementById('quiz-feedback');
+            const feedbackText = document.getElementById('feedback-text');
+            
+            feedbackEl.classList.remove('hidden');
+
+            if (selected === correct) {
+                btn.classList.add('bg-green-600', 'border-green-400');
+                quizScore++;
+                document.getElementById('quiz-score').innerText = quizScore;
+                feedbackText.innerText = "🎉 Correct!";
+                feedbackText.className = "text-2xl font-bold mb-4 text-green-400";
+            } else {
+                btn.classList.add('bg-red-600', 'border-red-400');
+                btn.classList.remove('bg-tjc-panel');
+                feedbackText.innerText = "❌ Incorrect";
+                feedbackText.className = "text-2xl font-bold mb-4 text-red-400";
+            }
+        }
+
+        // --- Start App ---
         init();
     </script>
 </body>
